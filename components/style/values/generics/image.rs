@@ -7,8 +7,9 @@
 //! [images]: https://drafts.csswg.org/css-images/#image-values
 
 use crate::custom_properties;
-use crate::values::generics::position::PositionComponent;
+use crate::values::generics::{easing::TimingFunction, position::PositionComponent};
 use crate::values::serialize_atom_identifier;
+use crate::values::specified::{Integer, Number};
 use crate::Atom;
 use crate::Zero;
 use servo_arc::Arc;
@@ -161,13 +162,15 @@ pub enum GenericGradient<
     Angle,
     AngleOrPercentage,
     Color,
+    Integer,
+    Number,
 > {
     /// A linear gradient.
     Linear {
         /// Line direction
         direction: LineDirection,
         /// The color stops and interpolation hints.
-        items: crate::OwnedSlice<GenericGradientItem<Color, LengthPercentage>>,
+        items: crate::OwnedSlice<GenericGradientItem<Color, LengthPercentage, Integer, Number>>,
         /// True if this is a repeating gradient.
         repeating: bool,
         /// Compatibility mode.
@@ -180,7 +183,7 @@ pub enum GenericGradient<
         /// Center of gradient
         position: Position,
         /// The color stops and interpolation hints.
-        items: crate::OwnedSlice<GenericGradientItem<Color, LengthPercentage>>,
+        items: crate::OwnedSlice<GenericGradientItem<Color, LengthPercentage, Integer, Number>>,
         /// True if this is a repeating gradient.
         repeating: bool,
         /// Compatibility mode.
@@ -193,7 +196,7 @@ pub enum GenericGradient<
         /// Center of gradient
         position: Position,
         /// The color stops and interpolation hints.
-        items: crate::OwnedSlice<GenericGradientItem<Color, AngleOrPercentage>>,
+        items: crate::OwnedSlice<GenericGradientItem<Color, AngleOrPercentage, Integer, Number>>,
         /// True if this is a repeating gradient.
         repeating: bool,
     },
@@ -289,7 +292,7 @@ pub enum ShapeExtent {
     Clone, Copy, Debug, MallocSizeOf, PartialEq, ToComputedValue, ToCss, ToResolvedValue, ToShmem,
 )]
 #[repr(C, u8)]
-pub enum GenericGradientItem<Color, T> {
+pub enum GenericGradientItem<Color, T, Integer, Number> {
     /// A simple color stop, without position.
     SimpleColorStop(Color),
     /// A complex color stop, with a position.
@@ -301,6 +304,8 @@ pub enum GenericGradientItem<Color, T> {
     },
     /// An interpolation hint.
     InterpolationHint(T),
+    /// An interpolation function <https://github.com/w3c/csswg-drafts/issues/1332>
+    InterpolationFunction(TimingFunction<Integer, Number>),
 }
 
 pub use self::GenericGradientItem as GradientItem;
@@ -321,12 +326,12 @@ pub struct ColorStop<Color, T> {
 impl<Color, T> ColorStop<Color, T> {
     /// Convert the color stop into an appropriate `GradientItem`.
     #[inline]
-    pub fn into_item(self) -> GradientItem<Color, T> {
+    pub fn into_item(self) -> GradientItem<Color, T, Integer, Number> {
         match (self.position, self.color) {
             (Some(position), Some(color)) => GradientItem::ComplexColorStop { color, position },
             (Some(position), None) => GradientItem::InterpolationHint(position),
             (None, Some(color)) => GradientItem::SimpleColorStop(color),
-            (None, None) => panic!("Non-positioned, non-colored GradientItems don't exist yet"),
+            (None, None) => panic!("Can't convert ColorStop back into Interpolation Function"),
         }
     }
 }
@@ -431,7 +436,8 @@ where
     }
 }
 
-impl<D, LP, NL, NLP, P, A: Zero, AoP, C> ToCss for Gradient<D, LP, NL, NLP, P, A, AoP, C>
+impl<D, LP, NL, NLP, P, A: Zero, AoP, C, I, N> ToCss
+    for Gradient<D, LP, NL, NLP, P, A, AoP, C, I, N>
 where
     D: LineDirection,
     LP: ToCss,
@@ -441,6 +447,8 @@ where
     A: ToCss,
     AoP: ToCss,
     C: ToCss,
+    I: ToCss,
+    N: ToCss,
 {
     fn to_css<W>(&self, dest: &mut CssWriter<W>) -> fmt::Result
     where

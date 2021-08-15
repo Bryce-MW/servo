@@ -10,6 +10,7 @@
 use crate::custom_properties::SpecifiedValue;
 use crate::parser::{Parse, ParserContext};
 use crate::stylesheets::CorsMode;
+use crate::values::generics::easing::TimingFunction;
 use crate::values::generics::image::PaintWorklet;
 use crate::values::generics::image::{
     self as generic, Circle, Ellipse, GradientCompatMode, ShapeExtent,
@@ -23,7 +24,7 @@ use crate::values::specified::{
     Angle, AngleOrPercentage, Color, Length, LengthPercentage, NonNegativeLength,
     NonNegativeLengthPercentage, Resolution,
 };
-use crate::values::specified::{Number, NumberOrPercentage, Percentage};
+use crate::values::specified::{Integer, Number, NumberOrPercentage, Percentage};
 use crate::Atom;
 use cssparser::{Delimiter, Parser, Token};
 use selectors::parser::SelectorParseErrorKind;
@@ -50,6 +51,8 @@ pub type Gradient = generic::Gradient<
     Angle,
     AngleOrPercentage,
     Color,
+    Integer,
+    Number,
 >;
 
 /// Specified values for CSS cross-fade
@@ -69,7 +72,8 @@ pub type ImageSet = generic::ImageSet<Image, Resolution>;
 /// Each of the arguments to `image-set()`
 pub type ImageSetItem = generic::ImageSetItem<Image, Resolution>;
 
-type LengthPercentageItemList = crate::OwnedSlice<generic::GradientItem<Color, LengthPercentage>>;
+type LengthPercentageItemList =
+    crate::OwnedSlice<generic::GradientItem<Color, LengthPercentage, Integer, Number>>;
 
 #[cfg(feature = "gecko")]
 fn cross_fade_enabled() -> bool {
@@ -1054,7 +1058,7 @@ impl ShapeExtent {
     }
 }
 
-impl<T> generic::GradientItem<Color, T> {
+impl<T> generic::GradientItem<Color, T, Integer, Number> {
     fn parse_comma_separated<'i, 't>(
         context: &ParserContext,
         input: &mut Parser<'i, 't>,
@@ -1070,6 +1074,12 @@ impl<T> generic::GradientItem<Color, T> {
                     if let Ok(hint) = input.try_parse(|i| parse_position(context, i)) {
                         seen_stop = false;
                         items.push(generic::GradientItem::InterpolationHint(hint));
+                        return Ok(());
+                    }
+
+                    if let Ok(interp_fn) = input.try_parse(|i| TimingFunction::parse(context, i)) {
+                        seen_stop = false;
+                        items.push(generic::GradientItem::InterpolationFunction(interp_fn));
                         return Ok(());
                     }
                 }

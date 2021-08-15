@@ -7,8 +7,14 @@ use app_units::Au;
 use euclid::default::{Point2D, Size2D, Vector2D};
 use style::properties::ComputedValues;
 use style::values::computed::image::{EndingShape, LineDirection};
-use style::values::computed::{Angle, Color, LengthPercentage, Percentage, Position};
-use style::values::generics::image::{Circle, ColorStop, Ellipse, GradientItem, ShapeExtent};
+use style::values::computed::{
+    Angle, Color, Integer, LengthPercentage, Number, Percentage, Position,
+};
+use style::values::generics::color::GenericColor;
+use style::values::generics::image::{
+    Circle, ColorStop, Ellipse, GenericGradientItem, GradientItem, ShapeExtent,
+};
+use style::values::RGBA;
 use webrender_api::{ExtendMode, Gradient, GradientBuilder, GradientStop, RadialGradient};
 
 /// A helper data structure for gradients.
@@ -78,7 +84,7 @@ fn ellipse_size_keyword(
 
 fn convert_gradient_stops(
     style: &ComputedValues,
-    gradient_items: &[GradientItem<Color, LengthPercentage>],
+    gradient_items: &[GradientItem<Color, LengthPercentage, Integer, Number>],
     total_length: Au,
 ) -> GradientBuilder {
     // Determine the position of each stop per CSS-IMAGES § 3.4.
@@ -97,6 +103,14 @@ fn convert_gradient_stops(
             GradientItem::InterpolationHint(position) => Some(ColorStop {
                 color: None,
                 position: Some(position.clone()),
+            }),
+            // NOTE(bryce): Interpolation Functions are not supported yet but we do want to consider
+            //  them in positioning. Currently this causes them to act as non-positioned stops. Once
+            //  this is agreed upon, it should be updated. See https://github.com/w3c/csswg-drafts/issues/1332
+            //  for updates.
+            GenericGradientItem::InterpolationFunction(_) => Some(ColorStop {
+                color: None,
+                position: None,
             }),
         })
         .collect::<Vec<_>>();
@@ -238,7 +252,7 @@ fn position_to_offset(position: &LengthPercentage, total_length: Au) -> f32 {
 pub fn linear(
     style: &ComputedValues,
     size: Size2D<Au>,
-    stops: &[GradientItem<Color, LengthPercentage>],
+    stops: &[GradientItem<Color, LengthPercentage, Integer, Number>],
     direction: LineDirection,
     repeating: bool,
 ) -> (Gradient, Vec<GradientStop>) {
@@ -304,7 +318,7 @@ pub fn linear(
 pub fn radial(
     style: &ComputedValues,
     size: Size2D<Au>,
-    stops: &[GradientItem<Color, LengthPercentage>],
+    stops: &[GradientItem<Color, LengthPercentage, Integer, Number>],
     shape: &EndingShape,
     center: &Position,
     repeating: bool,

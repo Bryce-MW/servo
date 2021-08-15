@@ -28,4 +28,10 @@ fn test_linear_gradient() {
 
     // Parsing without <angle> and <side-or-corner>
     assert_roundtrip_with_context!(Image::parse, "linear-gradient(red, green)");
+
+    // Parsing with interpolation hint
+    assert_roundtrip_with_context!(Image::parse, "linear-gradient(red, 50%, green)");
+
+    // Parsing with <easing-function>
+    assert_roundtrip_with_context!(Image::parse, "linear-gradient(red, ease-in-out, green)");
 }

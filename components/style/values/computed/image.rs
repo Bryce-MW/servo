@@ -14,8 +14,8 @@ use crate::values::computed::url::ComputedImageUrl;
 use crate::values::computed::NumberOrPercentage;
 use crate::values::computed::{Angle, Color, Context};
 use crate::values::computed::{
-    AngleOrPercentage, LengthPercentage, NonNegativeLength, NonNegativeLengthPercentage,
-    Resolution, ToComputedValue,
+    AngleOrPercentage, Integer, LengthPercentage, NonNegativeLength, NonNegativeLengthPercentage,
+    Number, Resolution, ToComputedValue,
 };
 use crate::values::generics::image::{self as generic, GradientCompatMode};
 use crate::values::specified::image as specified;
@@ -40,6 +40,8 @@ pub type Gradient = generic::GenericGradient<
     Angle,
     AngleOrPercentage,
     Color,
+    Integer,
+    Number,
 >;
 
 /// Computed values for CSS cross-fade

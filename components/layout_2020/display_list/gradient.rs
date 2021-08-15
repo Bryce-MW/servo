@@ -4,8 +4,12 @@
 
 use style::properties::ComputedValues;
 use style::values::computed::image::{EndingShape, Gradient, LineDirection};
-use style::values::computed::{Color, Length, LengthPercentage, Position};
-use style::values::generics::image::{Circle, ColorStop, Ellipse, GradientItem, ShapeExtent};
+use style::values::computed::{Color, Integer, Length, LengthPercentage, Number, Position};
+use style::values::generics::color::GenericColor;
+use style::values::generics::image::{
+    Circle, ColorStop, Ellipse, GenericGradientItem, GradientItem, ShapeExtent,
+};
+use style::values::RGBA;
 use webrender_api::{self as wr, units};
 
 pub(super) fn build(
@@ -58,7 +62,7 @@ pub(super) fn build(
 /// https://drafts.csswg.org/css-images-3/#linear-gradients
 pub(super) fn build_linear(
     style: &ComputedValues,
-    items: &[GradientItem<Color, LengthPercentage>],
+    items: &[GradientItem<Color, LengthPercentage, Integer, Number>],
     line_direction: &LineDirection,
     extend_mode: wr::ExtendMode,
     layer: &super::background::BackgroundLayer,
@@ -158,7 +162,7 @@ pub(super) fn build_linear(
 /// https://drafts.csswg.org/css-images-3/#radial-gradients
 pub(super) fn build_radial(
     style: &ComputedValues,
-    items: &[GradientItem<Color, LengthPercentage>],
+    items: &[GradientItem<Color, LengthPercentage, Integer, Number>],
     shape: &EndingShape,
     center: &Position,
     extend_mode: wr::ExtendMode,
@@ -258,7 +262,7 @@ pub(super) fn build_radial(
 /// https://drafts.csswg.org/css-images-4/#color-stop-fixup
 fn fixup_stops(
     style: &ComputedValues,
-    items: &[GradientItem<Color, LengthPercentage>],
+    items: &[GradientItem<Color, LengthPercentage, Integer, Number>],
     gradient_line_length: Length,
 ) -> Vec<wr::GradientStop> {
     // Color transition hints are not supported yet so we only use their position for the fixup, not
@@ -298,6 +302,16 @@ fn fixup_stops(
                         position.percentage_relative_to(gradient_line_length).px() /
                             gradient_line_length.px(),
                     ),
+                })
+            },
+            GenericGradientItem::InterpolationFunction(_) => {
+                // NOTE(bryce): Interpolation Functions are not supported yet but we do want to
+                //  consider them in positioning. Currently this causes them to act as
+                //  non-positioned stops. Once this is agreed upon, it should be updated. See
+                //  https://github.com/w3c/csswg-drafts/issues/1332 for updates.
+                stops.push(ColorStop {
+                    color: None,
+                    position: None,
                 })
             },
         }
